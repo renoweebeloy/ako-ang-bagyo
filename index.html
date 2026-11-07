@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ako Ang Bagyo - Animation</title>
+  <style>
+    :root {
+      --sky-top: #12090a;
+      --sky-mid: #2c1517;
+      --sky-bottom: #121318;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background: #040507;
+      color: #ffffff;
+      font-family: Impact, 'Arial Black', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      cursor: pointer;
+    }
+
+    /* Main Stage Container (Clean - No Bottom Controls) */
+    .stage-wrapper {
+      position: relative;
+      width: min(95vw, 760px);
+      aspect-ratio: 1 / 1;
+      max-height: 92vh;
+      background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 52%, var(--sky-bottom) 100%);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 25px 70px rgba(0, 0, 0, 0.95);
+      transform-origin: center center;
+    }
+
+    /* Camera Shake Effects */
+    .stage-wrapper.shake {
+      animation: cameraShake 0.32s cubic-bezier(0.36, 0.07, 0.19, 0.97) infinite;
+    }
+
+    .stage-wrapper.heavy-shake {
+      animation: heavyShake 0.15s cubic-bezier(0.36, 0.07, 0.19, 0.97) infinite;
+    }
+
+    @keyframes cameraShake {
+      0%, 100% { transform: translate(0, 0) rotate(0deg); }
+      25% { transform: translate(-3px, 2px) rotate(-0.3deg); }
+      50% { transform: translate(3px, -2px) rotate(0.3deg); }
+      75% { transform: translate(-2px, -3px) rotate(-0.2deg); }
+    }
+
+    @keyframes heavyShake {
+      0%, 100% { transform: translate(0, 0) scale(1.02); }
+      20% { transform: translate(-8px, 6px) rotate(-0.8deg) scale(1.03); }
+      40% { transform: translate(7px, -7px) rotate(0.7deg) scale(1.03); }
+      60% { transform: translate(-6px, -4px) rotate(-0.6deg) scale(1.02); }
+      80% { transform: translate(6px, 5px) rotate(0.6deg) scale(1.03); }
+    }
+
+    /* Storm & Rain Canvases */
+    canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    #bgCanvas { z-index: 1; }
+    #rainCanvas { z-index: 20; }
+
+    /* Lightning Flash Overlay */
+    .flash-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 22;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.08s ease-out;
+    }
+
+    /* Scene Containers */
+    .scene {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease, transform 2.4s cubic-bezier(0.22, 1, 0.36, 1);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .scene.active {
+      opacity: 1;
+    }
+
+    /* Second Picture (Main Anime Character Image) */
+    .hero-photo-wrapper {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 12;
+      overflow: hidden;
+      animation: heroBreathe 2.6s ease-in-out infinite alternate;
+      transform-origin: center center;
+    }
+
+    .hero-photo-wrapper.fierce-zoom {
+      animation: fiercePulse 0.45s ease-in-out infinite alternate;
+    }
+
+    @keyframes heroBreathe {
+      0% { transform: scale(1.08) translateY(0px); }
+      100% { transform: scale(1.12) translateY(5px); }
+    }
+
+    @keyframes fiercePulse {
+      0% { transform: scale(1.22) translate(-3px, 8px); filter: contrast(1.15) saturate(1.25); }
+      100% { transform: scale(1.26) translate(3px, 12px); filter: contrast(1.3) saturate(1.4) drop-shadow(0 0 20px rgba(255,40,40,0.6)); }
+    }
+
+    #mainAnimeImg {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      /* Crops out top screenshot bar cleanly */
+      object-position: center 58%;
+      display: block;
+    }
+
+    /* Dark vignette at bottom of photo so dynamic lyrics stay clean and readable */
+    .hero-bottom-gradient {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        180deg,
+        rgba(15, 8, 10, 0.25) 0%,
+        rgba(0, 0, 0, 0) 35%,
+        rgba(0, 0, 0, 0) 68%,
+        rgba(8, 6, 8, 0.92) 92%,
+        rgba(5, 4, 6, 0.98) 100%
+      );
+      z-index: 13;
+      pointer-events: none;
+    }
+
+    /* Wind & Breathing Animations for Other Scenes */
+    .wind-sway {
+      animation: windSway 1.5s ease-in-out infinite alternate;
+      transform-origin: top center;
+    }
+
+    @keyframes windSway {
+      0% { transform: skewX(-1.8deg) rotate(-0.8deg); }
+      100% { transform: skewX(3.5deg) rotate(1.6deg); }
+    }
+
+    .breathe {
+      animation: breathe 2.2s ease-in-out infinite alternate;
+      transform-origin: bottom center;
+    }
+
+    @keyframes breathe {
+      0% { transform: translateY(0) scale(1); }
+      100% { transform: translateY(4px) scale(1.008); }
+    }
+
+    /* Couple Scene Zoom Effect */
+    #scene-couple.zoom-in {
+      transform: scale(1.36) translateY(8%);
+    }
+
+    /* Looming Ghostly Overlay in Scene 4 using the Second Picture's Eyes/Face */
+    .ghost-guy-overlay {
+      position: absolute;
+      top: -6%;
+      left: 50%;
+      transform: translateX(-50%) scale(1.05);
+      width: 95%;
+      height: 88%;
+      opacity: 0;
+      z-index: 8;
+      mix-blend-mode: lighten;
+      filter: contrast(1.25) drop-shadow(0 0 30px rgba(255, 50, 40, 0.65));
+      transition: opacity 1.1s ease, transform 2.8s ease-out;
+      /* Soft radial mask so only the eyes/face of the second picture float in the clouds */
+      -webkit-mask-image: radial-gradient(ellipse 38% 30% at 50% 42%, rgba(0,0,0,1) 45%, rgba(0,0,0,0) 92%);
+      mask-image: radial-gradient(ellipse 38% 30% at 50% 42%, rgba(0,0,0,1) 45%, rgba(0,0,0,0) 92%);
+    }
+
+    .ghost-guy-overlay.visible {
+      opacity: 0.72;
+      transform: translateX(-50%) scale(1.16);
+    }
+
+    #ghostAnimeImg {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center 40%;
+    }
+
+    /* House & Flying Yero (Roof Sheets) */
+    .house-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    .yero-sheet {
+      transition: transform 0.75s cubic-bezier(0.55, 0.055, 0.675, 0.19), opacity 0.7s ease;
+      transform-origin: center center;
+    }
+
+    .yero-sheet.fly-away-1 {
+      transform: translate(-220px, -260px) rotate(-65deg) scale(1.4);
+      opacity: 0;
+    }
+    .yero-sheet.fly-away-2 {
+      transform: translate(260px, -290px) rotate(75deg) scale(1.5);
+      opacity: 0;
+    }
+    .yero-sheet.fly-away-3 {
+      transform: translate(-180px, -310px) rotate(-95deg) scale(1.6);
+      opacity: 0;
+    }
+
+    /* Final Full-Screen Yero Wipe */
+    .yero-camera-hit {
+      position: absolute;
+      inset: -20%;
+      z-index: 19;
+      background: repeating-linear-gradient(
+        102deg,
+        #4a1c1d 0px,
+        #662728 18px,
+        #351213 36px,
+        #592223 54px
+      );
+      box-shadow: inset 0 0 90px rgba(0, 0, 0, 0.85);
+      transform: translate(-120%, 110%) rotate(-38deg) scale(0.25);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .yero-camera-hit.slam {
+      animation: yeroSlam 1.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes yeroSlam {
+      0% {
+        transform: translate(-90%, 60%) rotate(-35deg) scale(0.25);
+        opacity: 0.95;
+      }
+      45% {
+        transform: translate(-10%, -5%) rotate(-12deg) scale(0.85);
+        opacity: 1;
+      }
+      75%, 100% {
+        transform: translate(0%, 0%) rotate(-5deg) scale(1.25);
+        opacity: 1;
+      }
+    }
+
+    /* Subtitle / Lyric Display Matching the Second Picture's Font Style */
+    .lyric-box {
+      position: absolute;
+      bottom: 26px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 25;
+      text-align: center;
+      width: 94%;
+      pointer-events: none;
+    }
+
+    .lyric-text {
+      display: inline-block;
+      font-family: Impact, 'Arial Black', sans-serif;
+      font-size: clamp(1.5rem, 3.8vw, 2.3rem);
+      font-weight: 900;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      color: #ffffff;
+      -webkit-text-stroke: 1.8px #000000;
+      text-shadow: 0 4px 10px rgba(0, 0, 0, 0.95), 0 0 18px rgba(0, 0, 0, 0.9);
+      padding: 2px 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- MAIN ANIMATION STAGE (NO BOTTOM BUTTONS) -->
+  <div class="stage-wrapper" id="stage">
+    <!-- Background Storm Clouds & Red Lightning Canvas -->
+    <canvas id="bgCanvas"></canvas>
+
+    <!-- SCENE 1 & 8: Directly Displays Your Second Picture (Anime Image) -->
+    <div class="scene active" id="scene-guy">
+      <div class="hero-photo-wrapper" id="heroPhotoWrapper">
+        <img id="mainAnimeImg" src="image_5d5dd5.jpg" alt="Ako Ang Bagyo Anime" />
+        <div class="hero-bottom-gradient"></div>
+      </div>
+    </div>
+
+    <!-- SCENE 2, 3 & 5: The Couple in the Storm + Looming Ghost Overlay of Your Picture -->
+    <div class="scene" id="scene-couple">
+      <!-- Giant Looming Eyes/Face from Your Second Picture in the Storm Clouds -->
+      <div class="ghost-guy-overlay" id="ghostOverlay">
+        <img id="ghostAnimeImg" src="image_5d5dd5.jpg" alt="Storm Eyes Overlay" />
+      </div>
+
+      <!-- Foreground Couple Standing Together -->
+      <svg viewBox="0 0 800 600" width="100%" height="100%" preserveAspectRatio="xMidYMax slice" style="position:relative; z-index:9;">
+        <g class="breathe">
+          <!-- BOY ON LEFT (Blue Button-Up Collared Shirt) -->
+          <g transform="translate(20, 15)">
+            <path d="M205,600 L222,438 C245,412 345,412 368,438 L388,600 Z" fill="#3a536b" stroke="#16202b" stroke-width="3"/>
+            <line x1="302" y1="435" x2="306" y2="600" stroke="#243547" stroke-width="4"/>
+            <path d="M276,375 L276,435 L318,435 L318,375 Z" fill="#dfcbbd" stroke="#1a1615" stroke-width="2.5"/>
+            <path d="M264,418 L298,448 L278,462 L255,432 Z" fill="#46637f" stroke="#16202b" stroke-width="2.5"/>
+            <path d="M330,418 L298,448 L318,462 L338,432 Z" fill="#46637f" stroke="#16202b" stroke-width="2.5"/>
+            <path d="M252,295 C250,352 278,390 318,395 C345,390 360,362 358,315 C356,265 255,260 252,295 Z" fill="#e6d3c6" stroke="#1a1615" stroke-width="3"/>
+            <ellipse cx="305" cy="332" rx="9" ry="5" fill="#fff" stroke="#111" stroke-width="2"/>
+            <circle cx="309" cy="332" r="4.5" fill="#18181b"/>
+            <ellipse cx="344" cy="332" rx="7" ry="4.5" fill="#fff" stroke="#111" stroke-width="2"/>
+            <circle cx="347" cy="332" r="4" fill="#18181b"/>
+            <path d="M292,318 Q306,314 318,320 M334,319 Q345,315 354,321" stroke="#18181b" stroke-width="3" fill="none"/>
+            <path d="M332,334 L339,354 L331,357" fill="none" stroke="#2b211c" stroke-width="2.2"/>
+            <path d="M318,373 Q328,371 336,374" fill="none" stroke="#2b211c" stroke-width="2.2"/>
+            <path d="M240,325 C232,265 275,238 322,250 C360,258 375,290 362,322 C350,295 335,288 315,295 C302,282 275,290 258,325 Z" fill="#14161b" stroke="#08090c" stroke-width="2.8"/>
+          </g>
+
+          <!-- GIRL ON RIGHT (Long Wavy Brown Hair & Purple Ribbed Turtleneck) -->
+          <g transform="translate(35, 25)" class="wind-sway">
+            <path d="M395,335 C375,405 370,485 385,555 C425,565 495,565 535,545 C548,475 538,395 512,335 Z" fill="#3a2921" stroke="#1a120e" stroke-width="3"/>
+            <path d="M392,600 L405,465 C425,445 495,445 515,465 L532,600 Z" fill="#7c587c" stroke="#231623" stroke-width="3"/>
+            <path d="M436,418 L434,456 Q460,466 486,456 L484,418 Q460,425 436,418 Z" fill="#8b658b" stroke="#231623" stroke-width="2.8"/>
+            <path d="M412,335 C412,388 432,422 460,425 C492,422 508,388 506,335 C504,292 414,292 412,335 Z" fill="#ead8cc" stroke="#1a1615" stroke-width="3"/>
+            <ellipse cx="432" cy="364" rx="7.5" ry="5" fill="#fff" stroke="#111" stroke-width="2"/>
+            <circle cx="429" cy="364" r="4.2" fill="#291d16"/>
+            <ellipse cx="468" cy="364" rx="9" ry="5.5" fill="#fff" stroke="#111" stroke-width="2"/>
+            <circle cx="464" cy="364" r="4.8" fill="#291d16"/>
+            <path d="M443,366 L437,384 L444,387" fill="none" stroke="#2b211c" stroke-width="2"/>
+            <path d="M442,402 Q450,399 458,402" fill="none" stroke="#845252" stroke-width="2.5"/>
+            <path d="M406,348 C408,295 445,280 485,292 C515,302 522,340 515,375 C505,342 495,332 485,328 C478,342 465,345 458,325 C448,342 432,342 422,328 C415,340 412,355 406,348 Z" fill="#463228" stroke="#1a120e" stroke-width="2.8"/>
+          </g>
+        </g>
+      </svg>
+    </div>
+
+    <!-- SCENE 4 & 7: Girl Front Close-Up (Purple Ribbed Turtleneck) -->
+    <div class="scene" id="scene-girl">
+      <svg viewBox="0 0 800 600" width="100%" height="100%" preserveAspectRatio="xMidYMax slice">
+        <defs>
+          <linearGradient id="girlHairGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#4d382e"/>
+            <stop offset="55%" stop-color="#38271f"/>
+            <stop offset="100%" stop-color="#221712"/>
+          </linearGradient>
+          <linearGradient id="purpleSweater" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#8b658b"/>
+            <stop offset="100%" stop-color="#583c58"/>
+          </linearGradient>
+        </defs>
+
+        <g class="breathe">
+          <g class="wind-sway">
+            <path d="M235,240 C205,355 190,475 215,600 L585,600 C610,475 595,355 565,240 Z" fill="url(#girlHairGrad)" stroke="#17100c" stroke-width="3.5"/>
+          </g>
+          <path d="M210,600 C230,505 295,478 400,478 C505,478 570,505 590,600 Z" fill="url(#purpleSweater)" stroke="#1e131e" stroke-width="3.5"/>
+          <path d="M356,385 L356,455 L444,455 L444,385 Z" fill="#dfcbbd" stroke="#1a1615" stroke-width="3"/>
+          <path d="M338,425 L330,492 Q400,516 470,492 L462,425 Q400,444 338,425 Z" fill="#956e95" stroke="#1e131e" stroke-width="3.2"/>
+          <path d="M286,210 C284,315 322,392 400,412 C478,392 516,315 514,210 C510,120 290,120 286,210 Z" fill="#ead7ca" stroke="#1a1615" stroke-width="3.5"/>
+
+          <g id="girlEyes">
+            <path d="M310,268 Q342,248 374,270 Q342,288 310,268 Z" fill="#ffffff" stroke="#14110f" stroke-width="3.2"/>
+            <circle cx="343" cy="268" r="13.5" fill="#3b261d"/>
+            <circle cx="343" cy="268" r="6.5" fill="#0d0806"/>
+            <circle cx="338" cy="262" r="3.8" fill="#ffffff"/>
+
+            <path d="M490,268 Q458,248 426,270 Q458,288 490,268 Z" fill="#ffffff" stroke="#14110f" stroke-width="3.2"/>
+            <circle cx="457" cy="268" r="13.5" fill="#3b261d"/>
+            <circle cx="457" cy="268" r="6.5" fill="#0d0806"/>
+            <circle cx="452" cy="262" r="3.8" fill="#ffffff"/>
+          </g>
+
+          <path d="M312,242 Q345,244 372,232" fill="none" stroke="#2d1e17" stroke-width="4.5" stroke-linecap="round"/>
+          <path d="M488,242 Q455,244 428,232" fill="none" stroke="#2d1e17" stroke-width="4.5" stroke-linecap="round"/>
+          <path d="M398,282 L395,325 Q400,331 406,325" fill="none" stroke="#3b2a22" stroke-width="2.5" stroke-linecap="round"/>
+
+          <ellipse id="girlMouthOpen" cx="400" cy="364" rx="14" ry="8" fill="#5e2b2b" stroke="#2b1616" stroke-width="2.5" opacity="0"/>
+          <path id="girlMouthClosed" d="M380,364 Q400,358 420,364" fill="none" stroke="#5e3434" stroke-width="3" stroke-linecap="round"/>
+
+          <g class="wind-sway">
+            <path d="M275,235 C272,125 335,88 400,92 C465,88 528,125 525,235 C512,195 498,175 485,225 C472,180 458,175 448,225 C435,175 418,175 405,228 C392,175 375,175 362,228 C348,175 332,180 318,225 C304,175 288,195 275,235 Z" fill="url(#girlHairGrad)" stroke="#17100c" stroke-width="3.2"/>
+          </g>
+        </g>
+      </svg>
+    </div>
+
+    <!-- SCENE 6 & 9: The House & Detachable Red Yero Roof -->
+    <div class="scene" id="scene-house">
+      <div class="house-container">
+        <svg viewBox="0 0 800 600" width="100%" height="100%" preserveAspectRatio="xMidYMax slice">
+          <defs>
+            <linearGradient id="wallGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#5d6166"/>
+              <stop offset="100%" stop-color="#393c40"/>
+            </linearGradient>
+            <linearGradient id="windowGlow" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#fef08a"/>
+              <stop offset="40%" stop-color="#ca8a04"/>
+              <stop offset="100%" stop-color="#422006"/>
+            </linearGradient>
+          </defs>
+
+          <polygon points="210,360 320,250 430,360 430,600 210,600" fill="url(#wallGrad)" stroke="#18191c" stroke-width="3.5"/>
+          <polygon points="430,360 760,395 760,600 430,600" fill="#45484c" stroke="#18191c" stroke-width="3.5"/>
+          <polygon points="320,250 675,288 770,400 430,362" fill="#1e1714" stroke="#0d0a08" stroke-width="3"/>
+
+          <g transform="translate(262, 395)">
+            <rect x="0" y="0" width="118" height="84" fill="#27292d" stroke="#141518" stroke-width="3"/>
+            <rect x="7" y="7" width="49" height="70" fill="url(#windowGlow)" stroke="#141518" stroke-width="2.5"/>
+            <rect x="62" y="7" width="49" height="70" fill="url(#windowGlow)" stroke="#141518" stroke-width="2.5"/>
+          </g>
+
+          <g transform="translate(525, 445) skewY(5)">
+            <rect x="0" y="0" width="128" height="92" fill="#27292d" stroke="#141518" stroke-width="3"/>
+            <rect x="8" y="8" width="52" height="76" fill="url(#windowGlow)" stroke="#141518" stroke-width="2.5"/>
+            <rect x="68" y="8" width="52" height="76" fill="url(#windowGlow)" stroke="#141518" stroke-width="2.5"/>
+          </g>
+
+          <polygon points="196,372 320,244 442,368 430,378 320,264 206,382" fill="#2d3034" stroke="#141518" stroke-width="2.5"/>
+
+          <g id="roofGroup">
+            <g class="yero-sheet" id="yero1">
+              <polygon points="320,244 445,258 545,376 430,364" fill="#5e2425" stroke="#1f0a0a" stroke-width="2.5"/>
+              <line x1="345" y1="247" x2="458" y2="367" stroke="#381213" stroke-width="3"/>
+              <line x1="395" y1="252" x2="514" y2="373" stroke="#381213" stroke-width="3"/>
+            </g>
+            <g class="yero-sheet" id="yero2">
+              <polygon points="445,258 565,272 668,389 545,376" fill="#542021" stroke="#1f0a0a" stroke-width="2.5"/>
+              <line x1="470" y1="261" x2="572" y2="379" stroke="#331011" stroke-width="3"/>
+              <line x1="520" y1="266" x2="628" y2="385" stroke="#331011" stroke-width="3"/>
+            </g>
+            <g class="yero-sheet" id="yero3">
+              <polygon points="565,272 685,285 785,402 668,389" fill="#4b1c1d" stroke="#1f0a0a" stroke-width="2.5"/>
+              <line x1="590" y1="275" x2="695" y2="392" stroke="#2b0d0e" stroke-width="3"/>
+              <line x1="640" y1="281" x2="750" y2="398" stroke="#2b0d0e" stroke-width="3"/>
+            </g>
+          </g>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Full-screen Giant Red Yero Sheet Flying Into Camera -->
+    <div class="yero-camera-hit" id="yeroCameraHit"></div>
+
+    <!-- Foreground Heavy Rain Canvas -->
+    <canvas id="rainCanvas"></canvas>
+
+    <!-- Lightning Flash Overlay -->
+    <div class="flash-overlay" id="flashOverlay"></div>
+
+    <!-- Synced Lyrics Display -->
+    <div class="lyric-box">
+      <div class="lyric-text" id="lyricText">AKO, AKO, AKO ANG BAGYO...</div>
+    </div>
+  </div>
+
+  <!-- Put your MP3 song in the same folder named "music.mp3" -->
+  <audio id="bgMusic" src="music.mp3" autoplay loop preload="auto"></audio>
+
+  <script>
+    // =========================================================================
+    // 1. AUTO-DETECT YOUR SAVED ANIME PICTURE FILENAME IN THE FOLDER
+    // =========================================================================
+    const mainAnimeImg = document.getElementById('mainAnimeImg');
+    const ghostAnimeImg = document.getElementById('ghostAnimeImg');
+
+    const possibleImageNames = [
+      'image_5d5dd5.jpg',
+      'anime.jpg',
+      'anime.png',
+      'watermarked_img_14820524728661309606.jpg',
+      'beloy.jpg',
+      'pic.jpg'
+    ];
+    let imgTryIndex = 0;
+
+    mainAnimeImg.addEventListener('error', () => {
+      imgTryIndex++;
+      if (imgTryIndex < possibleImageNames.length) {
+        const nextSrc = possibleImageNames[imgTryIndex];
+        mainAnimeImg.src = nextSrc;
+        ghostAnimeImg.src = nextSrc;
+      }
+    });
+
+    // Also allow dragging & dropping the image or MP3 directly onto the window
+    window.addEventListener('dragover', (e) => e.preventDefault());
+    window.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const file = e.dataTransfer.files[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      if (file.type.startsWith('image/')) {
+        mainAnimeImg.src = url;
+        ghostAnimeImg.src = url;
+      } else if (file.type.startsWith('audio/')) {
+        bgMusic.src = url;
+        bgMusic.currentTime = 0;
+        currentTime = 0;
+        bgMusic.play();
+      }
+    });
+
+    // =========================================================================
+    // 2. STORYBOARD TIMELINE (26-Second Loop)
+    // =========================================================================
+    const TOTAL_DURATION = 26.0;
+
+    const STORYBOARD = [
+      {
+        start: 0.0, end: 4.3,
+        sceneId: 'scene-guy',
+        lyric: 'AKO, AKO, AKO ANG BAGYO...',
+        fierceGuy: false,
+        lightningColor: 'red',
+        shake: 'none'
+      },
+      {
+        start: 4.3, end: 7.0,
+        sceneId: 'scene-couple',
+        lyric: 'Kulimlim ng langit ...',
+        zoomCouple: false,
+        ghostOverlay: false,
+        lightningColor: 'red',
+        shake: 'mild'
+      },
+      {
+        start: 7.0, end: 9.8,
+        sceneId: 'scene-couple',
+        lyric: '...SA INYONG DALAWA',
+        zoomCouple: true,
+        ghostOverlay: false,
+        lightningColor: 'red',
+        shake: 'mild'
+      },
+      {
+        start: 9.8, end: 12.7,
+        sceneId: 'scene-girl',
+        lyric: "Bulong ko sa hangin, Sana ...",
+        girlShocked: false,
+        lightningColor: 'white',
+        shake: 'none'
+      },
+      {
+        start: 12.7, end: 15.8,
+        sceneId: 'scene-couple',
+        lyric: '...HINDI KAYO MASAYA',
+        zoomCouple: false,
+        ghostOverlay: true,
+        lightningColor: 'red',
+        shake: 'mild'
+      },
+      {
+        start: 15.8, end: 18.8,
+        sceneId: 'scene-house',
+        lyric: 'SA TIBAY NG BAHAY...',
+        ripYero: false,
+        lightningColor: 'white',
+        shake: 'mild'
+      },
+      {
+        start: 18.8, end: 20.9,
+        sceneId: 'scene-girl',
+        lyric: '...NA TITIRHAN NIYO',
+        girlShocked: true,
+        lightningColor: 'red',
+        shake: 'mild'
+      },
+      {
+        start: 20.9, end: 23.6,
+        sceneId: 'scene-guy',
+        lyric: 'TATANGAYIN KO...',
+        fierceGuy: true,
+        lightningColor: 'red',
+        shake: 'heavy'
+      },
+      {
+        start: 23.6, end: 26.0,
+        sceneId: 'scene-house',
+        lyric: '...BAWAT YERO!',
+        ripYero: true,
+        lightningColor: 'red',
+        shake: 'heavy'
+      }
+    ];
+
+    const stage = document.getElementById('stage');
+    const bgCanvas = document.getElementById('bgCanvas');
+    const bgCtx = bgCanvas.getContext('2d');
+    const rainCanvas = document.getElementById('rainCanvas');
+    const rainCtx = rainCanvas.getContext('2d');
+    const flashOverlay = document.getElementById('flashOverlay');
+    const lyricText = document.getElementById('lyricText');
+    const bgMusic = document.getElementById('bgMusic');
+    const heroPhotoWrapper = document.getElementById('heroPhotoWrapper');
+
+    const scenes = {
+      'scene-guy': document.getElementById('scene-guy'),
+      'scene-couple': document.getElementById('scene-couple'),
+      'scene-girl': document.getElementById('scene-girl'),
+      'scene-house': document.getElementById('scene-house')
+    };
+
+    const ghostOverlay = document.getElementById('ghostOverlay');
+    const girlMouthOpen = document.getElementById('girlMouthOpen');
+    const girlMouthClosed = document.getElementById('girlMouthClosed');
+    const yero1 = document.getElementById('yero1');
+    const yero2 = document.getElementById('yero2');
+    const yero3 = document.getElementById('yero3');
+    const yeroCameraHit = document.getElementById('yeroCameraHit');
+
+    let currentTime = 0;
+    let lastTimestamp = performance.now();
+
+    // =========================================================================
+    // 3. CLICK ANYWHERE TO START MUSIC & STORM SFX (NO BUTTONS NEEDED)
+    // =========================================================================
+    let audioCtx = null;
+
+    function initStormAudio() {
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContextClass();
+
+        const bufferSize = audioCtx.sampleRate * 2;
+        const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        let b0 = 0, b1 = 0, b2 = 0;
+        for (let i = 0; i < bufferSize; i++) {
+          const white = Math.random() * 2 - 1;
+          b0 = 0.997 * b0 + white * 0.029;
+          b1 = 0.985 * b1 + white * 0.032;
+          b2 = 0.950 * b2 + white * 0.048;
+          output[i] = (b0 + b1 + b2 + white * 0.18) * 0.35;
+        }
+
+        const whiteNoise = audioCtx.createBufferSource();
+        whiteNoise.buffer = noiseBuffer;
+        whiteNoise.loop = true;
+
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.value = 950;
+        filter.Q.value = 0.7;
+
+        const rainGain = audioCtx.createGain();
+        rainGain.gain.value = 0.2;
+
+        whiteNoise.connect(filter);
+        filter.connect(rainGain);
+        rainGain.connect(audioCtx.destination);
+        whiteNoise.start(0);
+      }
+
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+
+      if (bgMusic.paused) {
+        bgMusic.play().catch(() => {});
+      }
+    }
+
+    function playThunderBoom() {
+      if (!audioCtx || audioCtx.state !== 'running') return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(92, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(22, audioCtx.currentTime + 0.85);
+
+      gain.gain.setValueAtTime(0.26, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.95);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.95);
+    }
+
+    window.addEventListener('pointerdown', initStormAudio);
+
+    // =========================================================================
+    // 4. STORM CLOUDS, RED LIGHTNING & RAIN ENGINE
+    // =========================================================================
+    let width = 760;
+    let height = 760;
+    const raindrops = [];
+    const clouds = [];
+    let activeBolt = null;
+
+    function resizeCanvases() {
+      width = bgCanvas.width = rainCanvas.width = stage.clientWidth;
+      height = bgCanvas.height = rainCanvas.height = stage.clientHeight;
+    }
+    window.addEventListener('resize', resizeCanvases);
+    resizeCanvases();
+
+    for (let i = 0; i < 16; i++) {
+      clouds.push({
+        x: Math.random() * width,
+        y: Math.random() * (height * 0.55),
+        r: 100 + Math.random() * 150,
+        speed: 0.3 + Math.random() * 0.5
+      });
+    }
+
+    for (let i = 0; i < 260; i++) {
+      raindrops.push({
+        x: Math.random() * width * 1.3,
+        y: Math.random() * height,
+        len: 26 + Math.random() * 34,
+        speed: 19 + Math.random() * 14,
+        alpha: 0.22 + Math.random() * 0.42,
+        thickness: 1 + Math.random() * 1.5
+      });
+    }
+
+    function triggerLightning(colorType = 'red') {
+      const startX = width * (0.15 + Math.random() * 0.7);
+      const points = [{ x: startX, y: 0 }];
+      let currX = startX;
+      let currY = 0;
+
+      while (currY < height * 0.82) {
+        currX += (Math.random() - 0.48) * 58;
+        currY += 18 + Math.random() * 28;
+        points.push({ x: currX, y: currY });
+      }
+
+      activeBolt = {
+        points,
+        color: colorType === 'red' ? '#ff6b6b' : '#e2e8f0',
+        glow: colorType === 'red' ? 'rgba(255, 45, 45, 0.9)' : 'rgba(200, 225, 255, 0.85)',
+        alpha: 1.0
+      };
+
+      flashOverlay.style.background = colorType === 'red'
+        ? 'radial-gradient(circle, rgba(255,70,50,0.42) 0%, rgba(120,15,15,0.22) 100%)'
+        : 'rgba(255, 255, 255, 0.32)';
+      flashOverlay.style.opacity = '1';
+      setTimeout(() => { flashOverlay.style.opacity = '0'; }, 90);
+
+      playThunderBoom();
+    }
+
+    function renderStorm(stormIntensity = 1, lightningType = 'red') {
+      bgCtx.clearRect(0, 0, width, height);
+
+      const skyGrad = bgCtx.createLinearGradient(0, 0, 0, height);
+      if (lightningType === 'red') {
+        skyGrad.addColorStop(0, '#180c0d');
+        skyGrad.addColorStop(0.45, '#3b1c1e');
+        skyGrad.addColorStop(1, '#121318');
+      } else {
+        skyGrad.addColorStop(0, '#14171f');
+        skyGrad.addColorStop(0.6, '#262932');
+        skyGrad.addColorStop(1, '#171920');
+      }
+      bgCtx.fillStyle = skyGrad;
+      bgCtx.fillRect(0, 0, width, height);
+
+      clouds.forEach(c => {
+        c.x -= c.speed * stormIntensity;
+        if (c.x + c.r < 0) c.x = width + c.r;
+
+        const g = bgCtx.createRadialGradient(c.x, c.y, c.r * 0.1, c.x, c.y, c.r);
+        g.addColorStop(0, 'rgba(14, 12, 16, 0.72)');
+        g.addColorStop(1, 'rgba(14, 12, 16, 0)');
+        bgCtx.fillStyle = g;
+        bgCtx.beginPath();
+        bgCtx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
+        bgCtx.fill();
+      });
+
+      if (Math.random() < 0.03 * stormIntensity) {
+        triggerLightning(lightningType);
+      }
+
+      if (activeBolt && activeBolt.alpha > 0.02) {
+        bgCtx.save();
+        bgCtx.strokeStyle = activeBolt.color;
+        bgCtx.shadowColor = activeBolt.glow;
+        bgCtx.shadowBlur = 26;
+        bgCtx.lineWidth = 3.8;
+        bgCtx.globalAlpha = activeBolt.alpha;
+        bgCtx.beginPath();
+        activeBolt.points.forEach((pt, idx) => {
+          if (idx === 0) bgCtx.moveTo(pt.x, pt.y);
+          else bgCtx.lineTo(pt.x, pt.y);
+        });
+        bgCtx.stroke();
+        bgCtx.restore();
+        activeBolt.alpha *= 0.84;
+      }
+
+      // Foreground Heavy Rain Falling Over the Picture & Scenes
+      rainCtx.clearRect(0, 0, width, height);
+      rainCtx.strokeStyle = '#cbd5e1';
+      rainCtx.lineCap = 'round';
+
+      const windAngleX = -1.8 * stormIntensity;
+      for (let i = 0; i < raindrops.length; i++) {
+        const d = raindrops[i];
+        rainCtx.globalAlpha = d.alpha;
+        rainCtx.lineWidth = d.thickness;
+        rainCtx.beginPath();
+        rainCtx.moveTo(d.x, d.y);
+        rainCtx.lineTo(d.x + windAngleX, d.y + d.len);
+        rainCtx.stroke();
+
+        d.x += windAngleX * 0.6;
+        d.y += d.speed * stormIntensity;
+
+        if (d.y > height) {
+          d.y = -35;
+          d.x = Math.random() * width * 1.2;
+        }
+      }
+    }
+
+    // =========================================================================
+    // 5. SCENE DIRECTOR LOOP
+    // =========================================================================
+    function updateStoryboard(t) {
+      const currentBlock = STORYBOARD.find(b => t >= b.start && t < b.end) || STORYBOARD[0];
+
+      Object.keys(scenes).forEach(id => {
+        scenes[id].classList.toggle('active', id === currentBlock.sceneId);
+      });
+
+      if (lyricText.textContent !== currentBlock.lyric) {
+        lyricText.textContent = currentBlock.lyric;
+      }
+
+      stage.classList.remove('shake', 'heavy-shake');
+      if (currentBlock.shake === 'mild') stage.classList.add('shake');
+      if (currentBlock.shake === 'heavy') stage.classList.add('heavy-shake');
+
+      scenes['scene-couple'].classList.toggle('zoom-in', !!currentBlock.zoomCouple);
+      ghostOverlay.classList.toggle('visible', !!currentBlock.ghostOverlay);
+
+      // Zoom & pulse your anime image fiercely on "TATANGAYIN KO..."
+      heroPhotoWrapper.classList.toggle('fierce-zoom', !!currentBlock.fierceGuy);
+
+      if (currentBlock.girlShocked) {
+        girlMouthOpen.setAttribute('opacity', '1');
+        girlMouthClosed.setAttribute('opacity', '0');
+      } else {
+        girlMouthOpen.setAttribute('opacity', '0');
+        girlMouthClosed.setAttribute('opacity', '1');
+      }
+
+      if (currentBlock.ripYero) {
+        const localT = t - currentBlock.start;
+        yero1.classList.toggle('fly-away-1', localT > 0.15);
+        yero2.classList.toggle('fly-away-2', localT > 0.45);
+        yero3.classList.toggle('fly-away-3', localT > 0.75);
+        yeroCameraHit.classList.toggle('slam', localT > 0.85);
+      } else {
+        yero1.classList.remove('fly-away-1');
+        yero2.classList.remove('fly-away-2');
+        yero3.classList.remove('fly-away-3');
+        yeroCameraHit.classList.remove('slam');
+      }
+
+      const intensity = currentBlock.shake === 'heavy' ? 1.45 : 1.0;
+      renderStorm(intensity, currentBlock.lightningColor);
+    }
+
+    function animate(now) {
+      const dt = (now - lastTimestamp) / 1000;
+      lastTimestamp = now;
+
+      if (!bgMusic.paused && bgMusic.duration) {
+        currentTime = bgMusic.currentTime % TOTAL_DURATION;
+      } else {
+        currentTime = (currentTime + dt) % TOTAL_DURATION;
+      }
+
+      updateStoryboard(currentTime);
+      requestAnimationFrame(animate);
+    }
+
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>
